@@ -1,0 +1,21 @@
+FROM --platform=linux/arm64 python:3.12.3
+
+ENV POETRY_HOME="/usr/local" \
+  POETRY_VERSION=1.4.2
+
+WORKDIR /home/mlflow-tutorial/
+COPY . /home/mlflow-tutorial/
+
+# Install poetry
+RUN curl -sSL https://install.python-poetry.org | python3 -
+
+# Install environment
+RUN poetry install
+
+RUN echo "export SHELL=/bin/bash" >> /root/.bashrc
+
+# Expose port for Jupyter
+EXPOSE 8888
+
+# Starts Jupyter Notebook
+CMD ["poetry", "run", "jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--allow-root"]

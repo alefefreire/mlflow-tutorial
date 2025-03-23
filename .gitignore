@@ -1,0 +1,28 @@
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
+
+# XML files
+*.xml
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# pytest cache
+.pytest_cache/
+
+# tox directory
+.tox/
+
+# mypy cache
+.mypy_cache/
+
+# Coverage reports
+.coverage
+
+# Catboost info
+catboost_info/
+
+# Mac files
+*.DS_Store
+.codegpt
