@@ -27,3 +27,12 @@ catboost_info/
 # Mac files
 *.DS_Store
 .codegpt
+
+# CSV files
+*.csv
+
+# Kaggle credentials
+.kaggle/
+
+# .env files
+.env

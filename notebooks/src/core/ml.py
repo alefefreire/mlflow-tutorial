@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Tuples
+from typing import Any, Dict, Tuple
 
 import pandas as pd
 from sklearn.base import BaseEstimator
