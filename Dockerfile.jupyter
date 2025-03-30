@@ -1,21 +1,23 @@
-FROM --platform=linux/arm64 python:3.12.3
+FROM python:3.12.2
 
-ENV POETRY_HOME="/usr/local" \
-  POETRY_VERSION=1.4.2
+# The installer requires curl (and certificates) to download the release archive
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates
+
+# Download the latest installer
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+
+# Run the installer then remove it
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+
+# Ensure the installed binary is on the `PATH`
+ENV PATH="/root/.local/bin/:$PATH"
 
 WORKDIR /home/mlflow-tutorial/
 COPY . /home/mlflow-tutorial/
 
-# Install poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
-
-# Install environment
-RUN poetry install
-
-RUN echo "export SHELL=/bin/bash" >> /root/.bashrc
-
+RUN uv sync --frozen
 # Expose port for Jupyter
 EXPOSE 8888
 
 # Starts Jupyter Notebook
-CMD ["poetry", "run", "jupyter", "notebook", "--ip=0.0.0.0", "--port=8888", "--allow-root"]
+CMD ["uv", "run", "--with", "jupyter", "jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--allow-root"]

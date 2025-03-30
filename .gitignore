@@ -1,6 +1,7 @@
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints
-
+*.log
+*.Trash-0/
 # XML files
 *.xml
 
