@@ -4,6 +4,9 @@ from typing import Any, Dict, Tuple
 import pandas as pd
 from sklearn.base import BaseEstimator
 
+from notebooks.src.models.classifier import ClassifierModel
+from notebooks.src.models.regressor import RegressorModel
+
 
 class BaseMLPipeline(ABC):
     """
@@ -12,8 +15,8 @@ class BaseMLPipeline(ABC):
 
     @abstractmethod
     def train(
-        self, X_train: pd.DataFrame, y_train: pd.Series, model: BaseEstimator
-    ) -> BaseEstimator:
+        self, X_train: pd.DataFrame, y_train: pd.Series
+    ) -> RegressorModel | ClassifierModel:
         """
         Train the model.
         Parameters
@@ -22,31 +25,11 @@ class BaseMLPipeline(ABC):
             The training data.
         y_train : pd.Series
             The target variable.
-        model : BaseEstimator
-            The sklearn model to train.
         Returns
         -------
-        BaseEstimator
-            The trained sklearn model.
-        """
-        pass
+        RegressorModel | ClassifierModel
+            The trained model.
 
-    @abstractmethod
-    def compare_models(
-        self, X_train: pd.DataFrame, y_train: pd.Series
-    ) -> BaseEstimator:
-        """
-        Compare different models and return the best one.
-        Parameters
-        ----------
-        X_train : pd.DataFrame
-            The training data.
-        y_train : pd.Series
-            The target variable.
-        Returns
-        -------
-        BaseEstimator
-            The sklearn model with the best performance.
         """
         pass
 
@@ -68,5 +51,28 @@ class BaseMLPipeline(ABC):
         -------
         BaseEstimator
             The tuned sklearn model.
+        """
+        pass
+
+    @abstractmethod
+    def evaluate_model(
+        self,
+        X_test: pd.DataFrame,
+        y_test: pd.Series,
+        model: ClassifierModel | RegressorModel,
+    ) -> None:
+        """
+        This method evaluates the model
+        Parameters
+        ----------
+        X_test : pd.DataFrame
+            The test data.
+        y_test : pd.Series
+            The target variable.
+        model : ClassifierModel | RegressorModel
+            The trained model.
+        Returns
+        -------
+        None
         """
         pass

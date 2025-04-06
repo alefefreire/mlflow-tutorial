@@ -19,11 +19,12 @@ class DataFetch(Fetch):
             The fetched dataset.
         """
         _ = self._kaggle_client.dataset_download_files(
-            dataset="yasserh/wine-quality-dataset",
+            dataset="nimapourmoradi/raisin-binary-classification",
             path=".",
             unzip=True,
         )
 
-        df = pd.read_csv("WineQT.csv")
+        df = pd.read_csv("Raisin_Dataset.csv")
+        df["Class"] = df["Class"].apply(lambda x: 1 if x == "Kecimen" else 0)
 
-        return Dataset(data=df, target="quality", features=df.columns.tolist())
+        return Dataset(data=df, target="Class", features=df.columns.tolist())
