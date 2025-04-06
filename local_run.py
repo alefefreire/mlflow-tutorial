@@ -1,6 +1,7 @@
 from dotenv import load_dotenv
 
 from notebooks.src.services.data_fetch import DataFetch
+from notebooks.src.services.pipeline import MLPipeline
 
 load_dotenv()
 
@@ -16,9 +17,9 @@ def run() -> None:
 
     data_fetch = DataFetch(kaggle_client=kaggle_api_client)
     dataset = data_fetch.fetch()
-    print(dataset.data.head())
-    print(f"Target: {dataset.target}")
-    print(f"Features: {dataset.features}")
+
+    pipeline = MLPipeline(dataset=dataset)
+    pipeline.run_pipeline()
 
 
 if __name__ == "__main__":
