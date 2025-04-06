@@ -30,6 +30,9 @@ catboost_info/
 
 # CSV files
 *.csv
+# Excel files
+*.xls
+*.xlsx
 
 # Kaggle credentials
 .kaggle/
