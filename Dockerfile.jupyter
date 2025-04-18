@@ -11,9 +11,12 @@ RUN sh /uv-installer.sh && rm /uv-installer.sh
 
 # Ensure the installed binary is on the `PATH`
 ENV PATH="/root/.local/bin/:$PATH"
+ENV KAGGLE_CONFIG_DIR="/home/mlflow-tutorial/.kaggle"
 
 WORKDIR /home/mlflow-tutorial/
 COPY . /home/mlflow-tutorial/
+COPY ./.kaggle/kaggle.json /home/mlflow-tutorial/.kaggle/kaggle.json
+
 
 RUN uv sync --frozen
 # Expose port for Jupyter

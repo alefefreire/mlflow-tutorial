@@ -1,6 +1,9 @@
+import logging
 from typing import List, Tuple
 
+import mlflow
 import pandas as pd
+from mlflow.data.pandas_dataset import PandasDataset
 from mlflow.entities import Experiment
 from sklearn.metrics import f1_score
 from sklearn.model_selection import train_test_split
@@ -10,11 +13,14 @@ from skopt import BayesSearchCV
 from skopt.space import Integer, Real
 from xgboost import XGBClassifier
 
-from notebooks.src.core.ml import BaseMLPipeline
-from notebooks.src.models.classifier import ClassifierModel
-from notebooks.src.models.data import Dataset
-from notebooks.src.models.params import Params
-from notebooks.src.models.regressor import RegressorModel
+from src.core.ml import BaseMLPipeline
+from src.models.classifier import ClassifierModel
+from src.models.data import Dataset
+from src.models.params import Params
+from src.models.regressor import RegressorModel
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("src.services.pipeline")
 
 
 class MLPipeline(BaseMLPipeline):
@@ -50,6 +56,7 @@ class MLPipeline(BaseMLPipeline):
         Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]
             The train and test sets.
         """
+        logger.info("Splitting the dataset into train and test sets.")
         has_nan: bool = self._dataset.data.isna().any().any()
         if has_nan:
             self._dataset.data = self._dataset.data.dropna()
@@ -71,6 +78,20 @@ class MLPipeline(BaseMLPipeline):
             random_state=42,
             stratify=stratify,
         )
+
+        train_dataset: PandasDataset = mlflow.data.from_pandas(
+            pd.concat([X_train, y_train], axis=1), name="train_dataset", targets="Class"
+        )
+        test_dataset: PandasDataset = mlflow.data.from_pandas(
+            pd.concat([X_test, y_test], axis=1), name="test_dataset", targets="Class"
+        )
+        with mlflow.start_run(
+            experiment_id=self._experiment.experiment_id,
+            run_name="train_test_split",
+        ):
+            mlflow.log_input(train_dataset, context="training")
+            mlflow.log_input(test_dataset, context="testing")
+
         return X_train, X_test, y_train, y_test
 
     def train(
@@ -190,6 +211,7 @@ class MLPipeline(BaseMLPipeline):
         """
         Run the pipeline.
         """
+
         X_train, X_test, y_train, y_test = self.train_test_split(
             is_drop_id=True,
             is_stratified=True,
@@ -205,4 +227,3 @@ class MLPipeline(BaseMLPipeline):
             n_jobs=-1,
             verbose=0,
         )
-        assert True

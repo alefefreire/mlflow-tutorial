@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from notebooks.src.models.data import Dataset
+from src.models.data import Dataset
 
 
 class Fetch(ABC):

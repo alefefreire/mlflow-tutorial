@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 
-from notebooks.src.services.data_fetch import DataFetch
-from notebooks.src.services.pipeline import MLPipeline
+from src.services.data_fetch import DataFetch
+from src.services.pipeline import MLPipeline
 
 load_dotenv()
 

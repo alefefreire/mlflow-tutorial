@@ -4,8 +4,8 @@ from typing import Any, Dict, Tuple
 import pandas as pd
 from sklearn.base import BaseEstimator
 
-from notebooks.src.models.classifier import ClassifierModel
-from notebooks.src.models.regressor import RegressorModel
+from src.models.classifier import ClassifierModel
+from src.models.regressor import RegressorModel
 
 
 class BaseMLPipeline(ABC):

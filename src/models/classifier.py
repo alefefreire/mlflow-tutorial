@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from sklearn.base import BaseEstimator
 from sklearn.pipeline import Pipeline
 
-from notebooks.src.models.params import Params
+from src.models.params import Params
 
 
 class ClassifierModel(BaseModel):
