@@ -5,7 +5,7 @@ import mlflow
 import pandas as pd
 from mlflow.data.pandas_dataset import PandasDataset
 from mlflow.entities import Experiment
-from sklearn.metrics import f1_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PowerTransformer
@@ -132,6 +132,25 @@ class MLPipeline(BaseMLPipeline):
         train_preds = model.predict(X_train)
         # Score the model
         score = f1_score(train_preds, y_train)
+        acc = accuracy_score(y_train, train_preds)
+        precision = precision_score(y_train, train_preds, average="weighted")
+        recall = recall_score(y_train, train_preds, average="weighted")
+        logger.info(f"Model f1 score: {score}")
+        logger.info(f"Model precision: {precision}")
+        logger.info(f"Model recall: {recall}")
+        logger.info(f"Model accuracy: {acc}")
+
+        with mlflow.start_run(
+            experiment_id=self._experiment.experiment_id,
+            run_name="train_model",
+        ):
+            mlflow.log_metric("f1_score", score)
+            mlflow.log_metric("accuracy", acc)
+            mlflow.log_metric("precision", precision)
+            mlflow.log_metric("recall", recall)
+
+            mlflow.sklearn.log_model(sk_model=model, artifact_path="model")
+
         return ClassifierModel(
             name=model.__class__.__name__,
             model=model,
