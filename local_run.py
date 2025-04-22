@@ -18,7 +18,7 @@ def run() -> None:
     data_fetch = DataFetch(kaggle_client=kaggle_api_client)
     dataset = data_fetch.fetch()
 
-    pipeline = MLPipeline(dataset=dataset)
+    pipeline = MLPipeline(dataset=dataset, experiment=None)
     pipeline.run_pipeline()
 
 
