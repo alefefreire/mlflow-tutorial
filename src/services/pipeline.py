@@ -4,7 +4,6 @@ from typing import List, Tuple
 import mlflow
 import numpy as np
 import pandas as pd
-from mlflow.data.pandas_dataset import PandasDataset
 from mlflow.entities import Experiment
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
@@ -14,13 +13,14 @@ from sklearn.metrics import (
     recall_score,
     roc_auc_score,
 )
-from sklearn.model_selection import StratifiedKFold, train_test_split
+from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PowerTransformer
 from skopt import BayesSearchCV
 from skopt.space import Integer, Real
 from xgboost import XGBClassifier
 
+from src.core.components import DataPrep, DataSplitter
 from src.core.ml import BaseMLPipeline
 from src.models.classifier import ClassifierModel
 from src.models.data import Dataset
@@ -37,6 +37,8 @@ class MLPipeline(BaseMLPipeline):
     def __init__(self, dataset: Dataset, experiment: Experiment = None):
         self._dataset = dataset
         self._experiment = experiment
+        self._data_prep = DataPrep(dataset)
+        self._data_splitter = DataSplitter(experiment)
 
     def train_test_split(
         self,
@@ -47,62 +49,21 @@ class MLPipeline(BaseMLPipeline):
         feature_Id: List[str] = None,
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
         """
-        Split the dataset into train and test sets.
-        Parameters
-        ----------
-        test_size : float
-            The proportion of the dataset to include in the test split.
-        is_stratified : bool
-            Whether to stratify the split based on the target variable.
-        selected_features : List[str]
-            The features to use for training.
-        is_drop_id : bool
-            Whether to drop the ID column from the dataset.
-        feature_Id : List[str]
-            The ID column to drop from the dataset.
-        Returns
-        -------
-        Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]
-            The train and test sets.
+        Interface to split the dataset into train and test sets.
         """
         logger.info("Splitting the dataset into train and test sets.")
-        has_nan: bool = self._dataset.data.isna().any().any()
-        if has_nan:
-            self._dataset.data = self._dataset.data.dropna()
 
-        X = self._dataset.data[self._dataset.features]
-        y = self._dataset.data[self._dataset.target]
-
-        if selected_features:
-            X = X[selected_features]
-        if is_drop_id and feature_Id:
-            X = X.drop(feature_Id, axis=1)
-
-        stratify = y if is_stratified else None
-
-        X_train, X_test, y_train, y_test = train_test_split(
+        X, y = self._data_prep.get_features_and_target(
+            selected_features=selected_features,
+            is_drop_id=is_drop_id,
+            feature_Id=feature_Id,
+        )
+        return self._data_splitter.split_data(
             X,
             y,
             test_size=test_size,
-            random_state=42,
-            stratify=stratify,
+            is_stratified=is_stratified,
         )
-
-        train_dataset: PandasDataset = mlflow.data.from_pandas(
-            pd.concat([X_train, y_train], axis=1), name="train_dataset", targets="Class"
-        )
-        test_dataset: PandasDataset = mlflow.data.from_pandas(
-            pd.concat([X_test, y_test], axis=1), name="test_dataset", targets="Class"
-        )
-        if self._experiment is not None:
-            with mlflow.start_run(
-                experiment_id=self._experiment.experiment_id,
-                run_name="train_test_split",
-            ):
-                mlflow.log_input(train_dataset, context="training")
-                mlflow.log_input(test_dataset, context="testing")
-
-        return X_train, X_test, y_train, y_test
 
     def train(
         self,
