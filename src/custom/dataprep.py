@@ -2,14 +2,22 @@ from typing import List, Tuple
 
 import mlflow
 import pandas as pd
-from mlflow.data.pandas_dataset import PandasDataset
+from mlflow.data import Dataset as PandasDataset
 from mlflow.entities import Experiment
 from sklearn.model_selection import train_test_split
 
+from src.core.dataprep import DataPrep, DataSplitter
 from src.models.data import Dataset
 
 
-class DataPrep:
+class CustomDataPrep(DataPrep):
+    """
+    Custom data preparation class for handling missing values and splitting.
+    It inherits from the abstract DataPrep class and implements the custom
+    get_X_and_y method.
+
+    """
+
     def __init__(self, dataset: Dataset):
         self._dataset = dataset
 
@@ -24,7 +32,7 @@ class DataPrep:
 
         return df
 
-    def get_features_and_target(
+    def get_X_and_y(
         self,
         selected_features: List[str] = None,
         is_drop_id: bool = True,
@@ -65,7 +73,13 @@ class DataPrep:
         return X, y
 
 
-class DataSplitter:
+class CustomDataSplitter(DataSplitter):
+    """
+    Custom data splitter class for splitting the dataset into training and testing sets.
+    It inherits from the abstract DataSplitter class and implements the custom
+    split_data method.
+    """
+
     def __init__(self, experiment: Experiment = None):
         self._experiment = experiment
 
