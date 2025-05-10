@@ -34,9 +34,9 @@ class CustomDataPrep(DataPrep):
 
     def get_X_and_y(
         self,
-        selected_features: List[str] = None,
-        is_drop_id: bool = True,
-        feature_Id: List[str] = None,
+        selected_features: List[str],
+        is_drop_id: bool,
+        feature_Id: List[str],
     ) -> Tuple[pd.DataFrame, pd.Series]:
         """
         Get features and target from the dataset.
@@ -87,8 +87,8 @@ class CustomDataSplitter(DataSplitter):
         self,
         X: pd.DataFrame,
         y: pd.Series,
-        test_size: float = 0.2,
-        is_stratified: bool = True,
+        test_size: float,
+        is_stratified: bool,
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
         """
         Split the data into training and testing sets.
@@ -102,8 +102,9 @@ class CustomDataSplitter(DataSplitter):
             The feature dataframe.
         y : pd.Series
             The target series.
-        test_size : float, optional
+        test_size : float
             The proportion of the dataset to include in the test split.
+        is_stratified: bool,
 
         Returns
         -------

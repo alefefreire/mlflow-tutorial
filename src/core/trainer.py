@@ -24,9 +24,11 @@ class ModelTrainer(ABC):
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series,
+        X_test: pd.DataFrame,
+        y_test: pd.Series,
         model: ClassifierModel,
-        n_splits: int = 5,
-        random_state: int = 42,
+        n_splits: int,
+        random_state: int,
     ):
         """
         Perform cross-validation on the model.

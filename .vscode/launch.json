@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug",
+      "name": "Local Run",
       "type": "debugpy",
       "request": "launch",
       "program": "local_run.py",

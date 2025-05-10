@@ -5,7 +5,6 @@ import mlflow
 import pandas as pd
 from mlflow.entities import Experiment
 from sklearn.metrics import (
-    ConfusionMatrixDisplay,
     accuracy_score,
     f1_score,
     precision_score,
@@ -13,45 +12,104 @@ from sklearn.metrics import (
     roc_auc_score,
 )
 from sklearn.pipeline import Pipeline
-from skopt import BayesSearchCV
-from skopt.space import Integer, Real
 
 from src.core.dataprep import DataPrep, DataSplitter
 from src.core.ml import BaseMLPipeline
 from src.core.trainer import ModelTrainer
+from src.core.tuner import ModelTuner
 from src.models.classifier import ClassifierModel
 from src.models.data import Dataset
-from src.models.params import Params
 from src.models.regressor import RegressorModel
-from src.services.plots import plot_classification_report
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("src.services.pipeline")
 
 
 class MLPipeline(BaseMLPipeline):
+    """
+    This class implements the ML pipeline interface.
+    It is responsible for orchestrating the data preparation, data splitting,
+    model training, and evaluation processes.
+    It uses the abstract classes defined in the core module to ensure that
+    the pipeline can be extended for different datasets and models.
+    Attributes
+    ----------
+    dataset : Dataset
+        The dataset to be used in the pipeline.
+    data_prep : DataPrep
+        The data preparation object to be used in the pipeline.
+    data_splitter : DataSplitter
+        The data splitting object to be used in the pipeline.
+    model_trainer : ModelTrainer
+        The model training object to be used in the pipeline.
+    experiment : Experiment
+        The experiment object to be logged using MLflow.
+    """
+
+    _type_constraints = {
+        "data_prep": DataPrep,
+        "data_splitter": DataSplitter,
+        "model_trainer": ModelTrainer,
+        "model_tuner": ModelTuner,
+    }
 
     def __init__(
         self,
         dataset: Dataset,
-        experiment: Experiment = None,
-        data_prep: DataPrep = None,
-        data_splitter: DataSplitter = None,
-        model_trainer: ModelTrainer = None,
+        data_prep: DataPrep,
+        data_splitter: DataSplitter,
+        model_trainer: ModelTrainer,
+        model_tuner: ModelTuner,
+        experiment: Experiment,
     ):
         self._dataset = dataset
         self._experiment = experiment
         self._data_prep = data_prep
         self._data_splitter = data_splitter
         self._model_trainer = model_trainer
+        self._model_tuner = model_tuner
+
+        # Initiate the typed attributes
+        for name, value in {
+            "data_prep": data_prep,
+            "data_splitter": data_splitter,
+            "model_trainer": model_trainer,
+            "model_tuner": model_tuner,
+        }.items():
+            setattr(self, name, value)
+
+    def __setattr__(self, name, value):
+        if name in self._type_constraints:
+            expected_type = self._type_constraints[name]
+            private_name = f"_{name}"
+            if not isinstance(value, expected_type):
+                raise TypeError(
+                    f"{name} must be an instance of {expected_type.__name__}"
+                )
+            super().__setattr__(private_name, value)
+        else:
+            super().__setattr__(name, value)
+
+    def __getattr__(self, name):
+        if name in self._type_constraints:
+            private_name = f"_{name}"
+            try:
+                return super().__getattribute__(private_name)
+            except AttributeError:
+                raise AttributeError(
+                    f"'{self.__class__.__name__}' object has no attribute '{name}'"
+                )
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
 
     def train_test_split(
         self,
-        test_size: float = 0.2,
-        is_stratified: bool = False,
-        selected_features: List[str] = None,
-        is_drop_id: bool = True,
-        feature_Id: List[str] = None,
+        test_size: float,
+        is_stratified: bool,
+        selected_features: List[str],
+        is_drop_id: bool,
+        feature_Id: List[str],
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
         """
         Interface to split the dataset into train and test sets.
@@ -74,17 +132,20 @@ class MLPipeline(BaseMLPipeline):
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series,
-        n_splits: int = 5,
-        random_state: int = 42,
+        X_test: pd.DataFrame,
+        y_test: pd.Series,
+        n_splits: int,
+        random_state: int,
     ) -> ClassifierModel:
         """
         Interface for model training
         """
-        model_pipeline = self._model_trainer.create_pipeline()
+
         trained_model = self._model_trainer.cross_validate(
             X_train=X_train,
             y_train=y_train,
-            model=model_pipeline,
+            X_test=X_test,
+            y_test=y_test,
             n_splits=n_splits,
             random_state=random_state,
         )
@@ -96,10 +157,6 @@ class MLPipeline(BaseMLPipeline):
         X_train: pd.DataFrame,
         y_train: pd.Series,
         baseline: ClassifierModel | RegressorModel,
-        n_iter: int,
-        cv: int,
-        n_jobs: int,
-        verbose: int,
     ) -> ClassifierModel | RegressorModel:
         """
         Tune the model hyperparameters.
@@ -116,58 +173,9 @@ class MLPipeline(BaseMLPipeline):
         ClassifierModel | RegressorModel
             The tuned sklearn model.
         """
-        model: Pipeline = baseline.model
-        params = Params(
-            model__max_depth=Integer(3, 10),
-            model__learning_rate=Real(0.01, 0.3, prior="log-uniform"),
-            model__subsample=Real(0.5, 1.0),
-            model__colsample_bytree=Real(0.5, 1.0),
+        return self._model_tuner.tune(
+            X_train=X_train, y_train=y_train, baseline=baseline
         )
-        bayes_search = BayesSearchCV(
-            estimator=model,
-            search_spaces=params.model_dump(),
-            n_iter=n_iter,
-            cv=cv,
-            n_jobs=n_jobs,
-            verbose=verbose,
-            scoring="roc_auc",
-        )
-        _ = bayes_search.fit(X_train, y_train)
-        if self._experiment is not None:
-            with mlflow.start_run(
-                experiment_id=self._experiment.experiment_id,
-                run_name="tune_model",
-            ):
-                mlflow.log_param("best_params", bayes_search.best_params_)
-                mlflow.log_metric("roc_auc", bayes_search.best_score_)
-                mlflow.sklearn.log_model(
-                    sk_model=bayes_search.best_estimator_,
-                    artifact_path="tuned_model",
-                )
-        logger.info(f"Best params: {bayes_search.best_params_}")
-        logger.info(f"Best roc auc score: {bayes_search.best_score_}")
-        logger.info(f"Best estimator: {bayes_search.best_estimator_}")
-        logger.info(
-            f"Best estimator name: {bayes_search.best_estimator_._final_estimator.__class__.__name__}"
-        )
-        logger.info(
-            f"Best estimator params: {bayes_search.best_estimator_._final_estimator.get_params()}"
-        )
-        if baseline.score >= bayes_search.best_score_:
-            logger.info(
-                f"Baseline model score: {baseline.score} is better than tuned model score: {bayes_search.best_score_}"
-            )
-            return baseline
-        else:
-            logger.info(
-                f"Tuned model score: {bayes_search.best_score_} is better than baseline model score: {baseline.score}"
-            )
-            return ClassifierModel(
-                name=bayes_search.best_estimator_._final_estimator.__class__.__name__,
-                model=bayes_search.best_estimator_,
-                params=bayes_search.best_params_,
-                score=bayes_search.best_score_,
-            )
 
     def evaluate_model(
         self,
@@ -202,20 +210,6 @@ class MLPipeline(BaseMLPipeline):
         logger.info(f"F1: {f1}")
         logger.info(f"ROC AUC: {roc_auc}")
 
-        cm_display = ConfusionMatrixDisplay.from_estimator(
-            model,
-            X_test,
-            y_test,
-            cmap="Blues",
-            normalize=None,
-        )
-
-        clf_report_fig = plot_classification_report(
-            y_true=y_test,
-            y_pred=y_pred,
-            figsize=(10, 6),
-            output_dict=True,
-        )
         if self._experiment is not None:
             with mlflow.start_run(
                 experiment_id=self._experiment.experiment_id,
@@ -226,28 +220,49 @@ class MLPipeline(BaseMLPipeline):
                 mlflow.log_metric("recall", recall)
                 mlflow.log_metric("f1", f1)
                 mlflow.log_metric("roc_auc", roc_auc)
-                mlflow.log_figure(cm_display.figure_, "confusion_matrix.png")
-                mlflow.log_figure(clf_report_fig, "classification_report.png")
 
-    def run_pipeline(self) -> None:
+    def run_pipeline(
+        self,
+        selected_features: List[str],
+        feature_Id: List[str],
+        test_size: float,
+        is_drop_id: bool,
+        is_stratified: bool,
+        n_splits: int,
+        random_state: int,
+        n_iter: int,
+        cv: int,
+        n_jobs: int,
+        verbose: int,
+    ) -> None:
         """
         Run the pipeline.
         """
 
         X_train, X_test, y_train, y_test = self.train_test_split(
-            is_drop_id=True,
-            is_stratified=True,
+            selected_features=selected_features,
+            feature_Id=feature_Id,
+            test_size=test_size,
+            is_drop_id=is_drop_id,
+            is_stratified=is_stratified,
         )
 
-        baseline = self.train(X_train, y_train)
-        tuned_model = self.tune_model(
-            X_train,
-            y_train,
-            baseline=baseline,
-            n_iter=10,
-            cv=3,
-            n_jobs=-1,
-            verbose=0,
+        baseline = self.train(
+            X_train=X_train,
+            y_train=y_train,
+            X_test=X_test,
+            y_test=y_test,
+            n_splits=n_splits,
+            random_state=random_state,
         )
-        _ = self.evaluate_model(X_test, y_test, tuned_model)
+        tuned_model = self.tune_model(
+            X_train=X_train,
+            y_train=y_train,
+            baseline=baseline,
+        )
+        _ = self.evaluate_model(
+            X_test=X_test,
+            y_test=y_test,
+            model=tuned_model,
+        )
         logger.info("Pipeline run completed.")
