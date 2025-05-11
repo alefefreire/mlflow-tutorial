@@ -40,7 +40,10 @@ class CustomModelTrainer(ModelTrainer):
         The machine learning models or estimators to be used in the pipeline.
     experiment : Experiment
         An MLflow Experiment object for logging metrics and tracking experiments.
-
+    n_splits : int
+        The number of splits for StratifiedKFold cross-validation.
+    random_state : int
+        The random seed for reproducibility during cross-validation.
     Methods
     -------
     create_pipeline() -> Pipeline
@@ -55,10 +58,14 @@ class CustomModelTrainer(ModelTrainer):
         pre_processing: Params,
         estimators: Estimators,
         experiment: Experiment,
+        n_splits: int,
+        random_state: int,
     ):
         self._experiment = experiment
         self.pre_processing = pre_processing
         self.estimators = estimators
+        self.n_splits = n_splits
+        self.random_state = random_state
 
     def create_pipeline(self, estimator: BaseEstimator) -> Pipeline:
         """
@@ -90,8 +97,6 @@ class CustomModelTrainer(ModelTrainer):
         y_train: pd.Series,
         X_test: pd.DataFrame,
         y_test: pd.Series,
-        n_splits: int,
-        random_state: int,
     ) -> ClassifierModel:
         """
         Trains a binary classification model using StratifiedKFold cross-validation.
@@ -110,10 +115,6 @@ class CustomModelTrainer(ModelTrainer):
             The feature matrix for testing the model.
         y_test: pd.Series
             The target variable (binary class labels) for testing.
-        n_splits : int, default=5
-            Number of folds for k-fold cross-validation.
-        random_state : int, default=42
-            Random seed for reproducibility in StratifiedKFold splitting.
 
         Returns
         -------
@@ -137,7 +138,7 @@ class CustomModelTrainer(ModelTrainer):
         all_auc = []
 
         skf = StratifiedKFold(
-            n_splits=n_splits, shuffle=True, random_state=random_state
+            n_splits=self.n_splits, shuffle=True, random_state=self.random_state
         )
         trained_models = dict()
         for model_name, estimator in self.estimators.model_dump().items():
@@ -172,12 +173,14 @@ class CustomModelTrainer(ModelTrainer):
                 all_auc.append(roc_auc)
 
                 logger.info(
-                    f"Fold {fold + 1}/{n_splits} - F1: {score:.4f}, AUC: {roc_auc:.4f}"
+                    f"Fold {fold + 1}/{self.n_splits} - F1: {score:.4f}, AUC: {roc_auc:.4f}"
                 )
-                logger.info(f"Fold {fold + 1}/{n_splits} - Accuracy: {acc:.4f}")
-                logger.info(f"Fold {fold + 1}/{n_splits} - Precision: {precision:.4f}")
-                logger.info(f"Fold {fold + 1}/{n_splits} - Recall: {recall:.4f}")
-                logger.info(f"Fold {fold + 1}/{n_splits} - ROC AUC: {roc_auc:.4f}")
+                logger.info(f"Fold {fold + 1}/{self.n_splits} - Accuracy: {acc:.4f}")
+                logger.info(
+                    f"Fold {fold + 1}/{self.n_splits} - Precision: {precision:.4f}"
+                )
+                logger.info(f"Fold {fold + 1}/{self.n_splits} - Recall: {recall:.4f}")
+                logger.info(f"Fold {fold + 1}/{self.n_splits} - ROC AUC: {roc_auc:.4f}")
 
             avg_acc = np.mean(all_acc)
             avg_pr = np.mean(all_pr)

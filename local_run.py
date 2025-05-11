@@ -20,9 +20,28 @@ load_dotenv()
 from kaggle.api.kaggle_api_extended import KaggleApi  # noqa: E402
 
 
-class RunPipelineParams(NamedTuple):
+class DataPrepParams(NamedTuple):
     """
-    Named tuple to hold the parameters for running the machine learning pipeline.
+    Named tuple to hold the parameters for data preparation.
+
+    Attributes
+    ----------
+    selected_features : List[str], optional
+        A list of feature names to be selected for training. Default is None.
+    is_drop_id : bool
+        Whether to drop the ID column from the dataset. Default is True.
+    feature_Id : List[str], optional
+        A list of ID column names to be dropped. Default is None.
+    """
+
+    selected_features: List[str] = None
+    is_drop_id: bool = True
+    feature_Id: List[str] = None
+
+
+class DataSplitterParams(NamedTuple):
+    """
+    Named tuple to hold the parameters for splitting the dataset.
 
     Attributes
     ----------
@@ -30,37 +49,10 @@ class RunPipelineParams(NamedTuple):
         Proportion of the dataset to include in the test split. Default is 0.2.
     is_stratified : bool
         Whether to perform stratified splitting of the dataset. Default is True.
-    selected_features : List[str]
-        List of feature names to be selected for training. Default is None.
-    is_drop_id : bool
-        Whether to drop the ID column from the dataset. Default is True.
-    feature_Id : List[str]
-        List of ID column names to be dropped. Default is None.
-    n_splits : int
-        Number of splits for cross-validation. Default is 5.
-    random_state : int
-        Random seed for reproducibility. Default is 42.
-    n_iter : int
-        Number of iterations for randomized search or similar processes. Default is 10.
-    n_jobs : int
-        Number of jobs to run in parallel. Default is -1 (use all processors).
-    cv : int
-        Number of cross-validation folds. Default is 5.
-    verbose : int
-        Verbosity level for logging. Default is 0.
     """
 
     test_size: float = 0.2
     is_stratified: bool = True
-    selected_features: List[str] = None
-    is_drop_id: bool = True
-    feature_Id: List[str] = None
-    n_splits: int = 5
-    random_state: int = 42
-    n_iter: int = 10
-    n_jobs: int = -1
-    cv: int = 5
-    verbose: int = 0
 
 
 class TrainParams(NamedTuple):
@@ -92,6 +84,8 @@ class TrainParams(NamedTuple):
         ),
         logistic_regression=LogisticRegression(max_iter=1000),
     )
+    n_splits: int = 5
+    random_state: int = 42
 
 
 class TunerParams(NamedTuple):
@@ -151,7 +145,8 @@ class TunerParams(NamedTuple):
 
 
 def run(
-    params: RunPipelineParams,
+    data_prep_params: DataPrepParams,
+    data_splitter_params: DataSplitterParams,
     train_params: TrainParams,
     tuner_params: TunerParams,
     experiment: Experiment = None,
@@ -165,43 +160,42 @@ def run(
     data_fetch = DataFetch(kaggle_client=kaggle_api_client)
     dataset = data_fetch.fetch()
 
-    data_prep = CustomDataPrep(dataset=dataset)
-    data_splitter = CustomDataSplitter(experiment=experiment)
+    data_prep = CustomDataPrep(
+        dataset=dataset,
+        selected_features=data_prep_params.selected_features,
+        is_drop_id=data_prep_params.is_drop_id,
+        feature_Id=data_prep_params.feature_Id,
+    )
+    data_splitter = CustomDataSplitter(
+        experiment=experiment,
+        test_size=data_splitter_params.test_size,
+        is_stratified=data_splitter_params.is_stratified,
+    )
     model_trainer = CustomModelTrainer(
         experiment=experiment,
         pre_processing=train_params.pre_processing,
         estimators=train_params.estimators,
+        n_splits=train_params.n_splits,
+        random_state=train_params.random_state,
     )
     model_tuner = CustomModelTuner(
         tuner_params=tuner_params,
         experiment=experiment,
     )
     ml = MLPipeline(
-        dataset=dataset,
         experiment=experiment,
         data_prep=data_prep,
         data_splitter=data_splitter,
         model_trainer=model_trainer,
         model_tuner=model_tuner,
     )
-    ml.run_pipeline(
-        selected_features=params.selected_features,
-        is_drop_id=params.is_drop_id,
-        feature_Id=params.feature_Id,
-        test_size=params.test_size,
-        is_stratified=params.is_stratified,
-        n_splits=params.n_splits,
-        random_state=params.random_state,
-        n_iter=params.n_iter,
-        n_jobs=params.n_jobs,
-        cv=params.cv,
-        verbose=params.verbose,
-    )
+    ml.run_pipeline()
 
 
 if __name__ == "__main__":
     run(
-        params=RunPipelineParams(),
+        data_prep_params=DataPrepParams(),
+        data_splitter_params=DataSplitterParams(),
         train_params=TrainParams(),
         tuner_params=TunerParams(),
     )

@@ -1,5 +1,5 @@
 import logging
-from typing import List, Tuple
+from typing import Tuple
 
 import mlflow
 import pandas as pd
@@ -18,7 +18,6 @@ from src.core.ml import BaseMLPipeline
 from src.core.trainer import ModelTrainer
 from src.core.tuner import ModelTuner
 from src.models.classifier import ClassifierModel
-from src.models.data import Dataset
 from src.models.regressor import RegressorModel
 
 logging.basicConfig(level=logging.INFO)
@@ -55,14 +54,12 @@ class MLPipeline(BaseMLPipeline):
 
     def __init__(
         self,
-        dataset: Dataset,
         data_prep: DataPrep,
         data_splitter: DataSplitter,
         model_trainer: ModelTrainer,
         model_tuner: ModelTuner,
         experiment: Experiment,
     ):
-        self._dataset = dataset
         self._experiment = experiment
         self._data_prep = data_prep
         self._data_splitter = data_splitter
@@ -105,28 +102,14 @@ class MLPipeline(BaseMLPipeline):
 
     def train_test_split(
         self,
-        test_size: float,
-        is_stratified: bool,
-        selected_features: List[str],
-        is_drop_id: bool,
-        feature_Id: List[str],
     ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
         """
         Interface to split the dataset into train and test sets.
         """
         logger.info("Splitting the dataset into train and test sets.")
 
-        X, y = self._data_prep.get_X_and_y(
-            selected_features=selected_features,
-            is_drop_id=is_drop_id,
-            feature_Id=feature_Id,
-        )
-        return self._data_splitter.split_data(
-            X,
-            y,
-            test_size=test_size,
-            is_stratified=is_stratified,
-        )
+        X, y = self._data_prep.get_X_and_y()
+        return self._data_splitter.split_data(X, y)
 
     def train(
         self,
@@ -134,8 +117,6 @@ class MLPipeline(BaseMLPipeline):
         y_train: pd.Series,
         X_test: pd.DataFrame,
         y_test: pd.Series,
-        n_splits: int,
-        random_state: int,
     ) -> ClassifierModel:
         """
         Interface for model training
@@ -146,8 +127,6 @@ class MLPipeline(BaseMLPipeline):
             y_train=y_train,
             X_test=X_test,
             y_test=y_test,
-            n_splits=n_splits,
-            random_state=random_state,
         )
 
         return trained_model
@@ -223,37 +202,18 @@ class MLPipeline(BaseMLPipeline):
 
     def run_pipeline(
         self,
-        selected_features: List[str],
-        feature_Id: List[str],
-        test_size: float,
-        is_drop_id: bool,
-        is_stratified: bool,
-        n_splits: int,
-        random_state: int,
-        n_iter: int,
-        cv: int,
-        n_jobs: int,
-        verbose: int,
     ) -> None:
         """
         Run the pipeline.
         """
 
-        X_train, X_test, y_train, y_test = self.train_test_split(
-            selected_features=selected_features,
-            feature_Id=feature_Id,
-            test_size=test_size,
-            is_drop_id=is_drop_id,
-            is_stratified=is_stratified,
-        )
+        X_train, X_test, y_train, y_test = self.train_test_split()
 
         baseline = self.train(
             X_train=X_train,
             y_train=y_train,
             X_test=X_test,
             y_test=y_test,
-            n_splits=n_splits,
-            random_state=random_state,
         )
         tuned_model = self.tune_model(
             X_train=X_train,
