@@ -35,4 +35,6 @@ class DataFetch(Fetch):
         logger.info("Data fetched successfully")
         logger.debug(f"Data shape: {df.shape}")
 
-        return Dataset(data=df, target="Class", features=df.columns.tolist())
+        return Dataset(
+            data=df, target="Class", features=df.drop("Class", axis=1).columns.tolist()
+        )
