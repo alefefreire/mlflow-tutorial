@@ -3,6 +3,7 @@ from typing import List, NamedTuple
 from dotenv import load_dotenv
 from mlflow.entities import Experiment
 from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import PowerTransformer
 from xgboost import XGBClassifier
@@ -139,7 +140,7 @@ class TunerParams(NamedTuple):
     ]
     scoring: str = "f1_micro"
     enable_mlflow: bool = False
-    cv: int = 5
+    cv: StratifiedKFold = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
     n_jobs: int = -1
     verbose: int = 0
 
