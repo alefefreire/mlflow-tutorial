@@ -29,14 +29,30 @@ class MLflowGridSearchCV(GridSearchCV):
 
         Parameters
         ----------
-        *args : tuple
-            Positional arguments passed to the base GridSearchCV class.
-        enable_mlflow : bool, optional
-            Whether to enable logging to MLflow. Default is False.
-        experiment : Experiment, optional
+        experiment : Experiment
             The MLflow experiment where the results will be logged.
-        **kwargs : dict
-            Additional keyword arguments passed to the base GridSearchCV class.
+        enable_mlflow : bool
+            Whether to enable logging to MLflow. Default is False.
+        estimator : estimator object
+            The object to use to fit the data. Must implement the scikit-learn estimator interface.
+        param_grid : dict or list of dictionaries
+            Dictionary with parameters names (`str`) as keys and lists of parameter settings to try as values.
+        scoring : str, callable, list, tuple, or dict, optional
+            A single string or a callable to evaluate the predictions on the test set.
+        n_jobs : int, optional
+            Number of jobs to run in parallel. Default is None.
+        refit : bool, str, or callable, optional
+            Refit an estimator using the best found parameters on the whole dataset. Default is True.
+        cv : int, cross-validation generator, or an iterable, optional
+            Determines the cross-validation splitting strategy. Default is None.
+        verbose : int, optional
+            Controls the verbosity: the higher, the more messages. Default is 0.
+        pre_dispatch : int or str, optional
+            Controls the number of jobs that get dispatched during parallel execution. Default is "2*n_jobs".
+        error_score : 'raise' or numeric, optional
+            Value to assign to the score if an error occurs in estimator fitting. Default is np.nan.
+        return_train_score : bool, optional
+            If False, the `cv_results_` attribute will not include training scores. Default is False.
 
         Methods
         -------
