@@ -154,10 +154,12 @@ class CustomDataSplitter(DataSplitter):
         )
 
         train_dataset: PandasDataset = mlflow.data.from_pandas(
-            pd.concat([X_train, y_train], axis=1), name="train_dataset", targets="Class"
+            pd.concat([X_train, y_train], axis=1),
+            name="train_dataset",
+            targets="quality",
         )
         test_dataset: PandasDataset = mlflow.data.from_pandas(
-            pd.concat([X_test, y_test], axis=1), name="test_dataset", targets="Class"
+            pd.concat([X_test, y_test], axis=1), name="test_dataset", targets="quality"
         )
         if self._experiment is not None:
             with mlflow.start_run(

@@ -1,4 +1,3 @@
-import logging
 from typing import Tuple
 
 import mlflow
@@ -19,9 +18,6 @@ from src.core.trainer import ModelTrainer
 from src.core.tuner import ModelTuner
 from src.models.classifier import ClassifierModel
 from src.models.regressor import RegressorModel
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("src.services.pipeline")
 
 
 class MLPipeline(BaseMLPipeline):
@@ -106,7 +102,6 @@ class MLPipeline(BaseMLPipeline):
         """
         Interface to split the dataset into train and test sets.
         """
-        logger.info("Splitting the dataset into train and test sets.")
 
         X, y = self._data_prep.get_X_and_y()
         return self._data_splitter.split_data(X, y)
@@ -135,6 +130,8 @@ class MLPipeline(BaseMLPipeline):
         self,
         X_train: pd.DataFrame,
         y_train: pd.Series,
+        X_test: pd.DataFrame,
+        y_test: pd.Series,
         baseline: ClassifierModel | RegressorModel,
     ) -> ClassifierModel | RegressorModel:
         """
@@ -152,8 +149,35 @@ class MLPipeline(BaseMLPipeline):
         ClassifierModel | RegressorModel
             The tuned sklearn model.
         """
+
         return self._model_tuner.tune(
             X_train=X_train, y_train=y_train, baseline=baseline
+        )
+
+    def nested_cv_(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        X_test: pd.DataFrame,
+        y_test: pd.Series,
+    ) -> None:
+        """
+        Tune the model hyperparameters.
+        Parameters
+        ----------
+        X_train : pd.DataFrame
+            The training data.
+        y_train : pd.Series
+            The target variable.
+        baseline : ClassifierModel | RegressorModel
+            The baseline model to tune.
+        Returns
+        -------
+        None
+        """
+
+        return self._model_tuner.nested_cv(
+            X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test
         )
 
     def evaluate_model(
@@ -183,12 +207,6 @@ class MLPipeline(BaseMLPipeline):
         f1 = f1_score(y_test, y_pred)
         roc_auc = roc_auc_score(y_test, y_pred_proba)
 
-        logger.info(f"Accuracy: {accuracy}")
-        logger.info(f"Precision: {precision}")
-        logger.info(f"Recall: {recall}")
-        logger.info(f"F1: {f1}")
-        logger.info(f"ROC AUC: {roc_auc}")
-
         if self._experiment is not None:
             with mlflow.start_run(
                 experiment_id=self._experiment.experiment_id,
@@ -215,14 +233,16 @@ class MLPipeline(BaseMLPipeline):
             X_test=X_test,
             y_test=y_test,
         )
-        tuned_model = self.tune_model(
+        _ = self.tune_model(
             X_train=X_train,
             y_train=y_train,
-            baseline=baseline,
-        )
-        _ = self.evaluate_model(
             X_test=X_test,
             y_test=y_test,
-            model=tuned_model,
+            baseline=baseline,
         )
-        logger.info("Pipeline run completed.")
+        _ = self.nested_cv_(
+            X_train=X_train,
+            y_train=y_train,
+            X_test=X_test,
+            y_test=y_test,
+        )

@@ -1,5 +1,3 @@
-import logging
-
 import mlflow
 import numpy as np
 import pandas as pd
@@ -16,11 +14,9 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.pipeline import Pipeline
 
 from src.core.trainer import ModelTrainer
+from src.custom.richer import logger
 from src.models.classifier import ClassifierModel
 from src.models.params import Estimators, Params
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("src.custom.trainer")
 
 
 class CustomModelTrainer(ModelTrainer):
@@ -156,7 +152,6 @@ class CustomModelTrainer(ModelTrainer):
                 # Fit the model
                 model.fit(X_train_fold, y_train_fold)
                 y_pred_fold = model.predict(X_test_fold)
-
                 # Score the model
                 score = f1_score(y_test_fold, y_pred_fold, average="weighted")
                 acc = accuracy_score(y_test_fold, y_pred_fold)
@@ -164,7 +159,9 @@ class CustomModelTrainer(ModelTrainer):
                     y_test_fold, y_pred_fold, average="weighted"
                 )
                 recall = recall_score(y_test_fold, y_pred_fold, average="weighted")
-                roc_auc = roc_auc_score(y_test_fold, y_pred_fold)
+                roc_auc = roc_auc_score(
+                    y_test_fold, model.predict_proba(X_test_fold), multi_class="ovr"
+                )
 
                 all_f1.append(score)
                 all_acc.append(acc)

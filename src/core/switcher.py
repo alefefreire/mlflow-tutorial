@@ -1,8 +1,8 @@
-from sklearn.base import BaseEstimator
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.dummy import DummyClassifier
 
 
-class ModelSwitcher(BaseEstimator):
+class ModelSwitcher(BaseEstimator, ClassifierMixin):
 
     def __init__(
         self, estimator: BaseEstimator = DummyClassifier(strategy="most_frequent")
@@ -44,6 +44,16 @@ class ModelSwitcher(BaseEstimator):
 
     def fit(self, X, y=None, **kwargs):
         self.estimator.fit(X, y)
+        # Forward common classifier attributes from the wrapped estimator
+        if hasattr(self.estimator, "classes_"):
+            self.classes_ = self.estimator.classes_
+        if hasattr(self.estimator, "n_classes_"):
+            self.n_classes_ = self.estimator.n_classes_
+        if hasattr(self.estimator, "n_features_in_"):
+            self.n_features_in_ = self.estimator.n_features_in_
+        if hasattr(self.estimator, "feature_names_in_"):
+            self.feature_names_in_ = self.estimator.feature_names_in_
+
         return self
 
     def predict(self, X, y=None):
@@ -54,3 +64,10 @@ class ModelSwitcher(BaseEstimator):
 
     def score(self, X, y):
         return self.estimator.score(X, y)
+
+    def __getattr__(self, name):
+        """Forward any other attributes to the underlying estimator"""
+        if name.startswith("__") and name.endswith("__"):
+            # Don't forward special Python attributes
+            raise AttributeError(name)
+        return getattr(self.estimator, name)

@@ -1,13 +1,17 @@
-import logging
-
 import pandas as pd
 from kaggle.api.kaggle_api_extended import KaggleApi
 
 from src.core.fetch import Fetch
 from src.models.data import Dataset
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("src.services.data_fetch")
+
+def categorize_quality(quality):
+    if quality <= 4:
+        return 0
+    elif 5 <= quality <= 6:
+        return 1
+    else:
+        return 2
 
 
 class DataFetch(Fetch):
@@ -24,17 +28,16 @@ class DataFetch(Fetch):
             The fetched dataset.
         """
         _ = self._kaggle_client.dataset_download_files(
-            dataset="nimapourmoradi/raisin-binary-classification",
+            dataset="yasserh/wine-quality-dataset",
             path=".",
             unzip=True,
         )
 
-        df = pd.read_csv("Raisin_Dataset.csv")
-        df["Class"] = df["Class"].apply(lambda x: 1 if x == "Kecimen" else 0)
-
-        logger.info("Data fetched successfully")
-        logger.debug(f"Data shape: {df.shape}")
+        df = pd.read_csv("WineQT.csv")
+        df["quality"] = df["quality"].apply(categorize_quality)
 
         return Dataset(
-            data=df, target="Class", features=df.drop("Class", axis=1).columns.tolist()
+            data=df,
+            target="quality",
+            features=df.drop("quality", axis=1).columns.tolist(),
         )

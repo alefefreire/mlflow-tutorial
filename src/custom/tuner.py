@@ -1,16 +1,15 @@
-import logging
-
 import pandas as pd
 from mlflow.entities import Experiment
+from rich.panel import Panel
+from sklearn.model_selection import cross_val_predict, cross_val_score
 
 from src.core.gridsearch import MLflowGridSearchCV
 from src.core.tuner import ModelTuner
+from src.custom.plots import plot_roc_curves_after_cv
+from src.custom.richer import console, logger
 from src.models.classifier import ClassifierModel
 from src.models.params import Params
 from src.models.regressor import RegressorModel
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("src.services.tuner")
 
 
 class CustomModelTuner(ModelTuner):
@@ -77,7 +76,7 @@ class CustomModelTuner(ModelTuner):
             estimator=self.tuner_params.pipeline,
             param_grid=[param.model_dump() for param in self.tuner_params.param_grid],
             scoring=self.tuner_params.scoring,
-            cv=self.tuner_params.cv,
+            cv=self.tuner_params.inner_cv,
             n_jobs=self.tuner_params.n_jobs,
             verbose=self.tuner_params.verbose,
         )
@@ -116,6 +115,14 @@ class CustomModelTuner(ModelTuner):
           the baseline model is returned.
         - The tuned model is wrapped in a `ClassifierModel` or `RegressorModel` object before returning.
         """
+        console.print(
+            Panel(
+                "Hypertunning using Non Nested CV",
+                title="GridSearchCV",
+                style="warning",
+            )
+        )
+
         gscv = self.create_search_cv()
         gscv.fit(X_train, y_train)
         logger.info(f"Best params: {gscv.best_params_}")
@@ -142,3 +149,41 @@ class CustomModelTuner(ModelTuner):
                 params=gscv.best_params_,
                 score=gscv.best_score_,
             )
+
+    def nested_cv(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        X_test: pd.DataFrame,
+        y_test: pd.Series,
+    ) -> None:
+        console.print(
+            Panel(
+                "Hypertunning using Nested CV",
+                title="NestedCV",
+                style="warning",
+            )
+        )
+        X = pd.concat([X_train, X_test])
+        y = pd.concat([y_train, y_test])
+
+        gscv = self.create_search_cv()
+        y_pred_proba = cross_val_predict(
+            gscv, X, y, cv=self.tuner_params.outer_cv, method="predict_proba"
+        )
+        nested_scores = cross_val_score(
+            gscv,
+            X,
+            y,
+            cv=self.tuner_params.outer_cv,
+            scoring=self.tuner_params.scoring,
+        )
+        console.log(
+            f"Mean Outer CV score: {nested_scores.mean():.4f} (std: {nested_scores.std():.4f})",
+            style="info",
+        )
+        _ = plot_roc_curves_after_cv(
+            y_true=y,
+            y_pred_proba=y_pred_proba,
+            target_names=["Class 0", "Class 1", "Class 3"],
+        )

@@ -10,6 +10,7 @@ from xgboost import XGBClassifier
 
 from src.core.switcher import ModelSwitcher
 from src.custom.dataprep import CustomDataPrep, CustomDataSplitter
+from src.custom.richer import logger
 from src.custom.trainer import CustomModelTrainer
 from src.custom.tuner import CustomModelTuner
 from src.models.params import Estimators, Params
@@ -37,7 +38,7 @@ class DataPrepParams(NamedTuple):
 
     selected_features: List[str] = None
     is_drop_id: bool = True
-    feature_Id: List[str] = None
+    feature_Id: List[str] = ["Id"]
 
 
 class DataSplitterParams(NamedTuple):
@@ -103,9 +104,7 @@ class TunerParams(NamedTuple):
         Default includes parameter grids for XGBClassifier and LogisticRegression.
     scoring : str
         The scoring metric to be used for evaluating the models during tuning. Default is "f1_micro".
-    enable_mlflow : bool
-        Whether to enable MLflow logging during the tuning process. Default is False.
-    cv : int
+    inner_cv : int
         Number of cross-validation folds. Default is 5.
     n_jobs : int
         Number of jobs to run in parallel. Default is -1 (use all processors).
@@ -126,7 +125,10 @@ class TunerParams(NamedTuple):
         Params(
             model__estimator=[
                 XGBClassifier(
-                    n_estimators=100, objective="binary:logistic", random_state=42
+                    n_estimators=10,
+                    objective="multi:softmax",
+                    num_class=3,
+                    random_state=42,
                 )
             ],
             model__estimator__max_depth=[3, 5, 7],
@@ -140,7 +142,12 @@ class TunerParams(NamedTuple):
     ]
     scoring: str = "f1_micro"
     enable_mlflow: bool = False
-    cv: StratifiedKFold = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    inner_cv: StratifiedKFold = StratifiedKFold(
+        n_splits=5, shuffle=True, random_state=42
+    )
+    outer_cv: StratifiedKFold = StratifiedKFold(
+        n_splits=5, shuffle=True, random_state=42
+    )
     n_jobs: int = -1
     verbose: int = 0
 
@@ -155,6 +162,7 @@ def run(
     """
     Run the entire pipeline.
     """
+    logger.info("Starting pipeline!")
     kaggle_api_client = KaggleApi()
     _ = kaggle_api_client.authenticate()
 
@@ -191,6 +199,7 @@ def run(
         model_tuner=model_tuner,
     )
     ml.run_pipeline()
+    logger.info("Pipeline completed!")
 
 
 if __name__ == "__main__":
