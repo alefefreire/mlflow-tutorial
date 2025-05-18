@@ -61,3 +61,30 @@ class ModelTuner(ABC):
         - The tuning process may involve techniques such as grid search, random search, or Bayesian optimization.
         """
         pass
+
+    @abstractmethod
+    def nested_cv(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.Series,
+        X_test: pd.DataFrame,
+        y_test: pd.Series,
+    ) -> None:
+        """
+        Abstract method for doing nested cross-validation (CV) strategy
+
+        This method should be implemented by subclasses to define the specific nested cv strategy.
+
+        Parameters
+        ----------
+        X_train : pd.DataFrame
+            The training data.
+        y_train : pd.Series
+            The target variable.
+        baseline : ClassifierModel | RegressorModel
+            The baseline model to tune.
+        Returns
+        -------
+        None
+        """
+        pass

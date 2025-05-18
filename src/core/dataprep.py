@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-import pandas as pd
+import pandas as pd  # type: ignore
 from mlflow.entities import Experiment
 
 
